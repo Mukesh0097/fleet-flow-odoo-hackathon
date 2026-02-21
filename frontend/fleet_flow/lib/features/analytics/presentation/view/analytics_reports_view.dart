@@ -121,7 +121,7 @@ class AnalyticsReportsScreen extends StatelessWidget {
             ),
             ...fleet.vehicles.map((v) {
               final opCost = fleet.getTotalOperatingCost(v.id);
-              final estRevenue = v.odometer * 0.5; // Mock: $0.5 per km
+              final estRevenue = v.currentOdometer * 0.5; // Mock: $0.5 per km
               const acqCost = 30000.0; // Mock 30k
               final roi = acqCost > 0
                   ? ((estRevenue - opCost) / acqCost) * 100

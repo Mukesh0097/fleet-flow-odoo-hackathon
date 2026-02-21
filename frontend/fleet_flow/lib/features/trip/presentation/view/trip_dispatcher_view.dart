@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:fleet_flow/features/fleet/presentation/provider/fleet_provider.dart';
+import 'package:fleet_flow/features/fleet/data/models/vehicle_model.dart';
 import 'package:fleet_flow/features/driver/presentation/provider/driver_provider.dart';
 import 'package:fleet_flow/features/driver/data/models/driver_model.dart';
 import 'package:fleet_flow/features/trip/presentation/provider/trip_provider.dart';
@@ -21,7 +22,7 @@ class _TripDispatcherScreenState extends State<TripDispatcherScreen> {
     final availableVehicles = fleet.availableVehicles;
     final availableDrivers = drivers.availableDrivers;
 
-    Vehicle? selectedVehicle;
+    VehicleModel? selectedVehicle;
     DriverModel? selectedDriver;
     final weightCtrl = TextEditingController();
 
@@ -36,7 +37,7 @@ class _TripDispatcherScreenState extends State<TripDispatcherScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ComboBox<Vehicle>(
+                  ComboBox<VehicleModel>(
                     placeholder: const Text('Select Vehicle'),
                     isExpanded: true,
                     value: selectedVehicle,
@@ -45,16 +46,17 @@ class _TripDispatcherScreenState extends State<TripDispatcherScreen> {
                           (v) => ComboBoxItem(
                             value: v,
                             child: Text(
-                              '${v.name} (${v.licensePlate} - Max ${v.maxLoadCapacity}kg)',
+                              '${v.name} (${v.licensePlate} - Max ${v.maxCapacityKg}kg)',
                             ),
                           ),
                         )
                         .toList(),
                     onChanged: (v) {
-                      if (v != null)
+                      if (v != null) {
                         setState(() {
                           selectedVehicle = v;
                         });
+                      }
                     },
                   ),
                   const SizedBox(height: 8),
@@ -66,10 +68,11 @@ class _TripDispatcherScreenState extends State<TripDispatcherScreen> {
                         .map((d) => ComboBoxItem(value: d, child: Text(d.name)))
                         .toList(),
                     onChanged: (d) {
-                      if (d != null)
+                      if (d != null) {
                         setState(() {
                           selectedDriver = d;
                         });
+                      }
                     },
                   ),
                   const SizedBox(height: 8),
@@ -87,8 +90,9 @@ class _TripDispatcherScreenState extends State<TripDispatcherScreen> {
                 FilledButton(
                   child: const Text('Dispatch'),
                   onPressed: () {
-                    if (selectedVehicle == null || selectedDriver == null)
+                    if (selectedVehicle == null || selectedDriver == null) {
                       return;
+                    }
 
                     final weight = double.tryParse(weightCtrl.text) ?? 0;
                     final error = trips.validateAndCreateTrip(
@@ -109,9 +113,9 @@ class _TripDispatcherScreenState extends State<TripDispatcherScreen> {
                         },
                       );
                     } else {
-                      fleet.updateVehicleStatus(
+                      fleet.updateVehicleStatusLocal(
                         selectedVehicle!.id,
-                        VehicleStatus.onTrip,
+                        'ON_TRIP',
                       );
                       drivers.updateDriverStatusLocal(
                         selectedDriver!.id,
@@ -226,10 +230,7 @@ class _TripDispatcherScreenState extends State<TripDispatcherScreen> {
                             child: const Text('Complete'),
                             onPressed: () {
                               trips.completeTrip(t.id);
-                              fleet.updateVehicleStatus(
-                                v.id,
-                                VehicleStatus.available,
-                              );
+                              fleet.updateVehicleStatusLocal(v.id, 'AVAILABLE');
                               drivers.updateDriverStatusLocal(
                                 d.id,
                                 'AVAILABLE',

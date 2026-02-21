@@ -132,7 +132,7 @@ class CommandCenterScreen extends StatelessWidget {
                   ),
                   Padding(
                     padding: const EdgeInsets.all(8.0),
-                    child: Text(v.status.name.toUpperCase()),
+                    child: Text(v.status),
                   ),
                 ],
               ),

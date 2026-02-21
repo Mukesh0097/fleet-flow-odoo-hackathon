@@ -18,7 +18,7 @@ class ApiService {
     };
 
     if (authToken) {
-      final token = await StorageServices.getToken();
+      final token = StorageServices.getToken();
 
       if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';

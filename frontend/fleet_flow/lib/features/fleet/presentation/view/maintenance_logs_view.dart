@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:fleet_flow/features/fleet/presentation/provider/fleet_provider.dart';
+import 'package:fleet_flow/features/fleet/data/models/vehicle_model.dart';
 
 class MaintenanceLogsScreen extends StatefulWidget {
   const MaintenanceLogsScreen({super.key});
@@ -12,7 +13,7 @@ class MaintenanceLogsScreen extends StatefulWidget {
 class _MaintenanceLogsScreenState extends State<MaintenanceLogsScreen> {
   void _showAddDialog(BuildContext context) {
     final fleet = context.read<FleetProvider>();
-    Vehicle? selectedVehicle;
+    VehicleModel? selectedVehicle;
     final descCtrl = TextEditingController();
     final costCtrl = TextEditingController();
 
@@ -27,7 +28,7 @@ class _MaintenanceLogsScreenState extends State<MaintenanceLogsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ComboBox<Vehicle>(
+                  ComboBox<VehicleModel>(
                     placeholder: const Text('Select Vehicle'),
                     isExpanded: true,
                     value: selectedVehicle,
@@ -35,10 +36,11 @@ class _MaintenanceLogsScreenState extends State<MaintenanceLogsScreen> {
                         .map((v) => ComboBoxItem(value: v, child: Text(v.name)))
                         .toList(),
                     onChanged: (v) {
-                      if (v != null)
+                      if (v != null) {
                         setState(() {
                           selectedVehicle = v;
                         });
+                      }
                     },
                   ),
                   const SizedBox(height: 8),

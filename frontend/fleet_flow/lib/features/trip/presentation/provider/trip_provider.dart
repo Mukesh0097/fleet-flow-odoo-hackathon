@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:fleet_flow/features/fleet/presentation/provider/fleet_provider.dart';
+import 'package:fleet_flow/features/fleet/data/models/vehicle_model.dart';
 
 enum TripStatus { draft, dispatched, completed, cancelled }
 
@@ -28,11 +28,11 @@ class TripProvider extends ChangeNotifier {
 
   String? validateAndCreateTrip({
     required String driverId,
-    required Vehicle vehicle,
+    required VehicleModel vehicle,
     required double cargoWeight,
   }) {
-    if (cargoWeight > vehicle.maxLoadCapacity) {
-      return "Cargo weight exceeds vehicle's max capacity (${vehicle.maxLoadCapacity}).";
+    if (cargoWeight > vehicle.maxCapacityKg) {
+      return "Cargo weight exceeds vehicle's max capacity (${vehicle.maxCapacityKg}).";
     }
 
     final newTrip = Trip(

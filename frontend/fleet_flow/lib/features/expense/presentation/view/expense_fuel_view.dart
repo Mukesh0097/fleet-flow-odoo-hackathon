@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:fleet_flow/features/fleet/presentation/provider/fleet_provider.dart';
+import 'package:fleet_flow/features/fleet/data/models/vehicle_model.dart';
 
 class ExpenseFuelScreen extends StatefulWidget {
   const ExpenseFuelScreen({super.key});
@@ -12,7 +13,7 @@ class ExpenseFuelScreen extends StatefulWidget {
 class _ExpenseFuelScreenState extends State<ExpenseFuelScreen> {
   void _showAddDialog(BuildContext context) {
     final fleet = context.read<FleetProvider>();
-    Vehicle? selectedVehicle;
+    VehicleModel? selectedVehicle;
     final litersCtrl = TextEditingController();
     final costCtrl = TextEditingController();
 
@@ -27,7 +28,7 @@ class _ExpenseFuelScreenState extends State<ExpenseFuelScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ComboBox<Vehicle>(
+                  ComboBox<VehicleModel>(
                     placeholder: const Text('Select Vehicle'),
                     isExpanded: true,
                     value: selectedVehicle,
@@ -35,10 +36,11 @@ class _ExpenseFuelScreenState extends State<ExpenseFuelScreen> {
                         .map((v) => ComboBoxItem(value: v, child: Text(v.name)))
                         .toList(),
                     onChanged: (v) {
-                      if (v != null)
+                      if (v != null) {
                         setState(() {
                           selectedVehicle = v;
                         });
+                      }
                     },
                   ),
                   const SizedBox(height: 8),
