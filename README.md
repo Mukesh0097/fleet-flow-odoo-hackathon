@@ -90,6 +90,20 @@ flutter run -d windows
 
 - The frontend uses HTTP requests to the backend API. Update the API base URL in the frontend where applicable (search for the API client or `http` calls under `frontend/fleet_flow/lib`).
 
+### API base URL
+
+The frontend reads the backend API base URL from `Constants.baseurl`. To point the app to your local backend, update the value in [frontend/fleet_flow/lib/core/constants/constants.dart](frontend/fleet_flow/lib/core/constants/constants.dart#L1-L3).
+
+Example — set to a local backend running on port 3000:
+
+```dart
+class Constants {
+	static const String baseurl = 'http://localhost:3000';
+}
+```
+
+If you are using a remote host or tunnel (e.g., ngrok / devtunnels), replace the value with the full host (including `http://` or `https://`).
+
 **Health check**
 
 - After the backend is running visit `http://localhost:3000/health` to verify the server is up.
