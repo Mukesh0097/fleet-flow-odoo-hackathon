@@ -1,0 +1,368 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [citext]
+}
+
+//============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  FLEET_MANAGER     // Full system access, vehicle & maintenance control
+  DISPATCHER        // Trip creation and management only
+  SAFETY_OFFICER    // Driver compliance and license monitoring
+  FINANCIAL_ANALYST // Read-only access to costs, reports, exports
+  DRIVER
+}
+
+enum Permission {
+  // Vehicle permissions
+  VIEW_VEHICLES
+  CREATE_VEHICLE
+  EDIT_VEHICLE
+  RETIRE_VEHICLE
+
+  // Trip permissions
+  VIEW_TRIPS
+  CREATE_TRIP
+  CANCEL_TRIP
+  COMPLETE_TRIP
+
+  // Driver permissions
+  VIEW_DRIVERS
+  CREATE_DRIVER
+  EDIT_DRIVER
+  SUSPEND_DRIVER
+
+  // Maintenance permissions
+  VIEW_MAINTENANCE
+  CREATE_MAINTENANCE_LOG
+
+  // Finance permissions
+  VIEW_EXPENSES
+  CREATE_FUEL_LOG
+  EXPORT_REPORTS
+
+  // Analytics permissions
+  VIEW_ANALYTICS
+  VIEW_DASHBOARD
+}
+
+enum VehicleStatus {
+  AVAILABLE       // Idle, ready to be assigned
+  ON_TRIP         // Currently dispatched
+  IN_SHOP         // Under maintenance, hidden from dispatcher
+  OUT_OF_SERVICE  // Permanently retired
+}
+
+enum VehicleType {
+  TRUCK
+  VAN
+  BIKE
+}
+
+enum DriverStatus {
+  ON_DUTY    // Available for assignment
+  OFF_DUTY   // Temporarily unavailable
+  SUSPENDED  // Blocked from all assignments
+}
+
+enum LicenseCategory {
+  VAN
+  TRUCK
+  BIKE
+  HEAVY // Large commercial vehicles
+}
+
+enum TripStatus {
+  DRAFT       // Created but not yet confirmed
+  DISPATCHED  // Assigned and in progress
+  COMPLETED   // Trip finished, odometer logged
+  CANCELLED   // Aborted at any stage
+}
+
+enum MaintenanceType {
+  PREVENTIVE  // Scheduled (oil change, tire rotation)
+  REACTIVE    // Breakdown / emergency repair
+  INSPECTION  // Routine safety check
+}
+
+enum FuelLogType {
+  FULL_TANK
+  PARTIAL
+}
+
+enum Region {
+  NORTH
+  SOUTH
+  EAST
+  WEST
+  CENTRAL
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+
+// ─── User & Auth ────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Self relation (Created By)
+  createdBy     User?   @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdById   String?
+
+  createdUsers  User[]  @relation("UserCreatedBy")
+
+  // Other Relations
+  maintenanceLogs MaintenanceLog[]
+  fuelLogs        FuelLog[]
+  tripActions     TripStatusLog[]
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+// ─── Vehicle Registry (Page 3) ───────────────────────────────
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  name            String
+  model           String
+  licensePlate    String        @unique // Unique identifier for the vehicle
+  vehicleType     VehicleType
+  maxCapacityKg   Float         // Maximum load capacity in kilograms
+  currentOdometer Float         @default(0) // in km
+  acquisitionCost Float?        // For ROI calculation
+  status          VehicleStatus @default(AVAILABLE)
+  region          Region?
+  isRetired       Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  trips           Trip[]
+  maintenanceLogs MaintenanceLog[]
+  fuelLogs        FuelLog[]
+
+  @@map("vehicles")
+}
+
+// ─── Driver Profiles (Page 7) ────────────────────────────────
+
+model Driver {
+  id                String            @id @default(cuid())
+  name              String
+  email             String            @unique
+  phone             String?
+  status            DriverStatus      @default(OFF_DUTY)
+  licenseNumber     String            @unique
+  licenseExpiryDate DateTime
+  licenseCategories LicenseCategory[] // e.g. ["VAN", "TRUCK"]
+  safetyScore       Float             @default(100.0) // 0–100 score
+  totalTrips        Int               @default(0)
+  completedTrips    Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  trips Trip[]
+
+  @@map("drivers")
+}
+
+// ─── Trip Dispatcher & Management (Page 4) ───────────────────
+
+model Trip {
+  id              String        @id @default(cuid())
+  tripCode        String        @unique @default(cuid()) // Human-readable code e.g. TRP-001
+  status          TripStatus    @default(DRAFT)
+
+  // Route
+  originAddress   String
+  destAddress     String
+  region          Region?
+
+  // Cargo
+  cargoDescription String?
+  cargoWeightKg    Float        // Validated: must be <= vehicle.maxCapacityKg
+
+  // Odometer tracking
+  startOdometer   Float?
+  endOdometer     Float?        // Filled on completion → calculates km driven
+
+  // Timestamps
+  scheduledAt     DateTime
+  dispatchedAt    DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  vehicleId       String
+  vehicle         Vehicle       @relation(fields: [vehicleId], references: [id])
+
+  driverId        String
+  driver          Driver        @relation(fields: [driverId], references: [id])
+
+  fuelLogs        FuelLog[]
+  statusLogs      TripStatusLog[]
+  expenses        TripExpense[]
+
+  @@map("trips")
+}
+
+// Audit trail for every trip status change
+model TripStatusLog {
+  id        String     @id @default(cuid())
+  tripId    String
+  trip      Trip       @relation(fields: [tripId], references: [id])
+  fromStatus TripStatus?
+  toStatus  TripStatus
+  changedAt DateTime   @default(now())
+  changedBy String?    // userId
+  user      User?      @relation(fields: [changedBy], references: [id])
+  note      String?
+
+  @@map("trip_status_logs")
+}
+
+// ─── Maintenance & Service Logs (Page 5) ─────────────────────
+
+model MaintenanceLog {
+  id              String          @id @default(cuid())
+  vehicleId       String
+  vehicle         Vehicle         @relation(fields: [vehicleId], references: [id])
+
+  maintenanceType MaintenanceType
+  description     String          // e.g. "Oil Change", "Brake Pad Replacement"
+  cost            Float
+  odometerAtService Float?        // km at time of service
+  serviceDate     DateTime
+  completedDate   DateTime?       // null = still in shop
+  vendorName      String?
+
+  // Auto-logic: When created → vehicle.status = IN_SHOP
+  // When completedDate is set → vehicle.status = AVAILABLE
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  createdById     String
+  createdBy       User            @relation(fields: [createdById], references: [id])
+
+  @@map("maintenance_logs")
+}
+
+// ─── Fuel & Expense Logging (Page 6) ─────────────────────────
+
+model FuelLog {
+  id          String      @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle     @relation(fields: [vehicleId], references: [id])
+
+  tripId      String?     // Optional: link to specific trip
+  trip        Trip?       @relation(fields: [tripId], references: [id])
+
+  logType     FuelLogType
+  liters      Float
+  costPerLiter Float
+  totalCost   Float       // liters × costPerLiter
+  odometerKm  Float       // Odometer at time of fill
+  logDate     DateTime
+
+  createdAt   DateTime    @default(now())
+
+  createdById String
+  createdBy   User        @relation(fields: [createdById], references: [id])
+
+  @@map("fuel_logs")
+}
+
+// Additional trip-level expenses (tolls, loading fees, etc.)
+model TripExpense {
+  id          String   @id @default(cuid())
+  tripId      String
+  trip        Trip     @relation(fields: [tripId], references: [id])
+  category    String   // e.g. "Toll", "Loading Fee", "Parking"
+  amount      Float
+  description String?
+  expenseDate DateTime
+  createdAt   DateTime @default(now())
+
+  @@map("trip_expenses")
+}
+
+// ─── Cargo / Shipments (Page 2 - Pending Cargo KPI) ──────────
+
+model Cargo {
+  id           String   @id @default(cuid())
+  description  String
+  weightKg     Float
+  originAddress String
+  destAddress  String
+  region       Region?
+  isAssigned   Boolean  @default(false) // false = pending assignment
+  tripId       String?  // Set when assigned to a trip
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("cargos")
+}
+
+// ─── Operational Analytics (Page 8) ──────────────────────────
+
+// Snapshot table - populated by a scheduled background job
+// Stores computed metrics to avoid expensive real-time queries
+model VehicleAnalyticsSnapshot {
+  id                  String   @id @default(cuid())
+  vehicleId           String
+  snapshotDate        DateTime // Date of this calculation
+
+  // Metrics
+  totalKmDriven       Float    @default(0)
+  totalFuelLiters     Float    @default(0)
+  totalFuelCost       Float    @default(0)
+  totalMaintenanceCost Float   @default(0)
+  totalOperationalCost Float   @default(0) // fuelCost + maintenanceCost
+  totalRevenue        Float    @default(0)
+  fuelEfficiencyKmPerL Float?  // totalKmDriven / totalFuelLiters
+  costPerKm           Float?   // totalOperationalCost / totalKmDriven
+  vehicleROI          Float?   // (revenue - (maintenance + fuel)) / acquisitionCost
+  tripsCompleted      Int      @default(0)
+  utilizationRate     Float?   // % of time vehicle was ON_TRIP vs AVAILABLE
+
+  createdAt           DateTime @default(now())
+
+  @@unique([vehicleId, snapshotDate])
+  @@map("vehicle_analytics_snapshots")
+}
+
+// ─── Audit Log ───────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String   // e.g. "VEHICLE_RETIRED", "DRIVER_SUSPENDED"
+  entityType String   // e.g. "Vehicle", "Driver", "Trip"
+  entityId   String
+  oldValue   Json?    // Snapshot before change
+  newValue   Json?    // Snapshot after change
+  createdAt  DateTime @default(now())
+
+  @@map("audit_logs")
+}
