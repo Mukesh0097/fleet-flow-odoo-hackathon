@@ -1,15 +1,19 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 
-import 'providers/auth_provider.dart';
-import 'providers/fleet_provider.dart';
-import 'providers/driver_provider.dart';
-import 'providers/trip_provider.dart';
-import 'router/app_router.dart';
-import 'theme/app_theme.dart';
+import 'package:fleet_flow/features/auth/presentation/provider/auth_provider.dart';
+import 'package:fleet_flow/features/fleet/presentation/provider/fleet_provider.dart';
+import 'package:fleet_flow/features/driver/presentation/provider/driver_provider.dart';
+import 'package:fleet_flow/features/trip/presentation/provider/trip_provider.dart';
+import 'package:fleet_flow/features/users/presentation/provider/user_provider.dart';
+import 'package:fleet_flow/route_generator.dart';
+import 'package:fleet_flow/core/themes/app_theme.dart';
 
-void main() {
+import 'package:fleet_flow/core/services/storage_services.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await StorageServices.init();
   runApp(const FleetFlowApp());
 }
 
@@ -28,6 +32,7 @@ class _FleetFlowAppState extends State<FleetFlowApp> {
   void initState() {
     super.initState();
     _authProvider = AuthProvider();
+    _authProvider.checkAuthStatus();
     _appRouter = AppRouter(_authProvider);
   }
 
@@ -39,6 +44,7 @@ class _FleetFlowAppState extends State<FleetFlowApp> {
         ChangeNotifierProvider(create: (_) => FleetProvider()),
         ChangeNotifierProvider(create: (_) => DriverProvider()),
         ChangeNotifierProvider(create: (_) => TripProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
       ],
       child: FluentApp.router(
         title: 'FleetFlow',
